@@ -1,10 +1,11 @@
 import boto3
 import io
+import os
 import pandas as pd
 from botocore.config import Config
 from rdkit import Chem
 
-BUCKET = "cheminformatics-input"
+BUCKET = "cheminformatics-local"
 
 # Robust configuration to prevent indefinite hangs in case of network or S3 auth issues
 S3_CONFIG = Config(
@@ -13,10 +14,16 @@ S3_CONFIG = Config(
     retries={"max_attempts": 1}
 )
 
+S3_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL")
+
+
+def _get_s3_client():
+    return boto3.client("s3", config=S3_CONFIG, endpoint_url=S3_ENDPOINT_URL)
+
 
 def _read_csv(bucket: str, key: str):
     """Safely fetch CSV from S3 with built-in timeouts."""
-    s3 = boto3.client("s3", config=S3_CONFIG)
+    s3 = _get_s3_client()
     obj = s3.get_object(Bucket=bucket, Key=key)
     return pd.read_csv(io.BytesIO(obj["Body"].read()))
 
@@ -52,7 +59,7 @@ def generate_molecules(dataset_id: str):
     out_df = pd.DataFrame({"smiles": list(molecules)})
 
     # Save output to S3
-    s3 = boto3.client("s3", config=S3_CONFIG)
+    s3 = _get_s3_client()
     buf = io.StringIO()
     out_df.to_csv(buf, index=False)
     s3.put_object(
