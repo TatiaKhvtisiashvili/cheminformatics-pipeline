@@ -14,13 +14,13 @@ def _csv_bytes(df: pd.DataFrame) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
-@patch("chem_utils.molecule_gen.boto3.client")
-def test_generate_molecules_combines_scaffold_and_r_group(mock_boto_client):
+@patch("chem_utils.molecule_gen._get_s3_client")
+def test_generate_molecules_combines_scaffold_and_r_group(mock_get_s3_client):
     scaffolds_df = pd.DataFrame({"smiles": ["CCC*"]})
     r_groups_df = pd.DataFrame({"smiles": ["*Cl"]})
 
     mock_s3 = MagicMock()
-    mock_boto_client.return_value = mock_s3
+    mock_get_s3_client.return_value = mock_s3
 
     def get_object_side_effect(Bucket, Key):
         if "scaffolds" in Key:
@@ -41,13 +41,13 @@ def test_generate_molecules_combines_scaffold_and_r_group(mock_boto_client):
     assert len(written_df) > 0
 
 
-@patch("chem_utils.molecule_gen.boto3.client")
-def test_generate_molecules_skips_invalid_smiles(mock_boto_client):
+@patch("chem_utils.molecule_gen._get_s3_client")
+def test_generate_molecules_skips_invalid_smiles(mock_get_s3_client):
     scaffolds_df = pd.DataFrame({"smiles": ["not_a_real_smiles"]})
     r_groups_df = pd.DataFrame({"smiles": ["*Cl"]})
 
     mock_s3 = MagicMock()
-    mock_boto_client.return_value = mock_s3
+    mock_get_s3_client.return_value = mock_s3
 
     def get_object_side_effect(Bucket, Key):
         if "scaffolds" in Key:
@@ -63,12 +63,12 @@ def test_generate_molecules_skips_invalid_smiles(mock_boto_client):
     assert len(written_df) == 0  # invalid scaffold should be skipped, nothing generated
 
 
-@patch("chem_utils.properties.boto3.client")
-def test_calculate_properties_outputs_expected_columns(mock_boto_client):
+@patch("chem_utils.properties._get_s3_client")
+def test_calculate_properties_outputs_expected_columns(mock_get_s3_client):
     molecules_df = pd.DataFrame({"smiles": ["CCO", "c1ccccc1"]})
 
     mock_s3 = MagicMock()
-    mock_boto_client.return_value = mock_s3
+    mock_get_s3_client.return_value = mock_s3
     mock_s3.get_object.return_value = {"Body": io.BytesIO(_csv_bytes(molecules_df))}
 
     calculate_properties("test003")
@@ -81,8 +81,8 @@ def test_calculate_properties_outputs_expected_columns(mock_boto_client):
     assert len(written_df) == 2
 
 
-@patch("chem_utils.clustering.boto3.client")
-def test_cluster_molecules_assigns_cluster_column(mock_boto_client):
+@patch("chem_utils.clustering._get_s3_client")
+def test_cluster_molecules_assigns_cluster_column(mock_get_s3_client):
     properties_df = pd.DataFrame({
         "smiles": ["CCO", "c1ccccc1", "CCC", "CCN", "CCCl"],
         "molecular_weight": [46.07, 78.11, 44.1, 45.08, 64.51],
@@ -90,7 +90,7 @@ def test_cluster_molecules_assigns_cluster_column(mock_boto_client):
     })
 
     mock_s3 = MagicMock()
-    mock_boto_client.return_value = mock_s3
+    mock_get_s3_client.return_value = mock_s3
     mock_s3.get_object.return_value = {"Body": io.BytesIO(_csv_bytes(properties_df))}
 
     cluster_molecules("test004", n_clusters=2)
@@ -102,12 +102,12 @@ def test_cluster_molecules_assigns_cluster_column(mock_boto_client):
     assert written_df["cluster"].nunique() <= 2
 
 
-@patch("chem_utils.clustering.boto3.client")
-def test_cluster_molecules_raises_on_empty_properties(mock_boto_client):
+@patch("chem_utils.clustering._get_s3_client")
+def test_cluster_molecules_raises_on_empty_properties(mock_get_s3_client):
     empty_df = pd.DataFrame({"smiles": [], "molecular_weight": [], "logp": []})
 
     mock_s3 = MagicMock()
-    mock_boto_client.return_value = mock_s3
+    mock_get_s3_client.return_value = mock_s3
     mock_s3.get_object.return_value = {"Body": io.BytesIO(_csv_bytes(empty_df))}
 
     with pytest.raises(ValueError):
