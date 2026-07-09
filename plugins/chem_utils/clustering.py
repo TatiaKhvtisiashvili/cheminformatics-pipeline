@@ -6,8 +6,14 @@ from botocore.config import Config
 from sklearn.cluster import KMeans
 from rdkit import Chem
 from rdkit.Chem import AllChem
+import os
 
-BUCKET = "cheminformatics-input"
+S3_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL")
+
+def _get_s3_client():
+    return boto3.client("s3", config=S3_CONFIG, endpoint_url=S3_ENDPOINT_URL)
+
+BUCKET = "cheminformatics-local"
 S3_CONFIG = Config(connect_timeout=3, read_timeout=3, retries={"max_attempts": 1})
 
 def cluster_molecules(dataset_id: str, n_clusters: int = 5):
