@@ -1,23 +1,24 @@
 import boto3
 import io
+import os
 import pandas as pd
 import numpy as np
 from botocore.config import Config
 from sklearn.cluster import KMeans
 from rdkit import Chem
 from rdkit.Chem import AllChem
-import os
 
+BUCKET = "cheminformatics-local"
+S3_CONFIG = Config(connect_timeout=3, read_timeout=3, retries={"max_attempts": 1})
 S3_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL")
+
 
 def _get_s3_client():
     return boto3.client("s3", config=S3_CONFIG, endpoint_url=S3_ENDPOINT_URL)
 
-BUCKET = "cheminformatics-local"
-S3_CONFIG = Config(connect_timeout=3, read_timeout=3, retries={"max_attempts": 1})
 
 def cluster_molecules(dataset_id: str, n_clusters: int = 5):
-    s3 = boto3.client("s3", config=S3_CONFIG)
+    s3 = _get_s3_client()
     obj = s3.get_object(Bucket=BUCKET, Key=f"properties/{dataset_id}_properties.csv")
     df = pd.read_csv(io.BytesIO(obj["Body"].read()))
 
