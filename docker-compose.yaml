@@ -77,10 +77,11 @@ services:
       - DEFAULT_REGION=eu-central-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
+      - PERSISTENCE=1
     volumes:
       - "localstack_data:/var/lib/localstack"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:4566/_localstack/health" ]
       interval: 5s
       retries: 10
 
