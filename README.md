@@ -114,8 +114,8 @@ aws --endpoint-url=http://localhost:4566 s3 mb s3://cheminformatics-local --regi
 
 Upload the sample fixture files:
 ```powershell
-aws --endpoint-url=http://localhost:4566 s3 cp tests/sample_data/batch001_scaffolds.csv s3://cheminformatics-local/batch001_scaffolds.csv
-aws --endpoint-url=http://localhost:4566 s3 cp tests/sample_data/batch001_r_groups.csv s3://cheminformatics-local/batch001_r_groups.csv
+aws --endpoint-url=http://localhost:4566 s3 cp tests/batch001_scaffolds.csv s3://cheminformatics-local/batch001_scaffolds.csv
+aws --endpoint-url=http://localhost:4566 s3 cp tests/batch001_r_groups.csv s3://cheminformatics-local/batch001_r_groups.csv
 ```
 
 Verify:
