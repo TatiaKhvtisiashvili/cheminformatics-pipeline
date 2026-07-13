@@ -7,27 +7,50 @@ from chem_utils.molecule_gen import generate_molecules
 from chem_utils.properties import calculate_properties
 from chem_utils.clustering import cluster_molecules
 from chem_utils.discovery import discover_new_datasets
+from chem_utils.quality_checks import run_quality_checks
+from chem_utils.notifications import notify_teams
+
+
+def _task_failure_alert(context):
+    ti = context["task_instance"]
+    notify_teams(
+        f"Task `{ti.task_id}` failed in run `{ti.run_id}`.\nCheck Airflow logs for details.",
+        is_error=True,
+    )
+
 
 default_args = {
     "owner": "cheminformatics",
     "retries": 1,
     "email_on_failure": False,
+    "on_failure_callback": _task_failure_alert,
 }
 
 
 def _discover_new_datasets(**context):
-    """List scaffold files in S3, filter to only new ones since last successful
-    run unless overwrite=True."""
     overwrite = context["params"]["overwrite"]
     prev_success = context.get("prev_start_date_success")
     return discover_new_datasets(overwrite, prev_success)
 
 
 def _process_dataset(dataset_id, **context):
-    """Run the full generate -> properties -> cluster chain for a single dataset."""
+    """Run generate -> properties -> quality check -> cluster for one dataset.
+    Notifies MS Teams on success, and on quality-check failure specifically
+    (task-level failures are also caught by on_failure_callback above)."""
     generate_molecules(dataset_id)
     calculate_properties(dataset_id)
+
+    issues = run_quality_checks(dataset_id)
+    if issues:
+        notify_teams(
+            f"Dataset `{dataset_id}` failed data quality checks:\n- " + "\n- ".join(issues),
+            is_error=True,
+        )
+        raise ValueError(f"Data quality check failed for {dataset_id}: {issues}")
+
     cluster_molecules(dataset_id)
+
+    notify_teams(f"Dataset `{dataset_id}` processed successfully.", is_error=False)
 
 
 with DAG(
