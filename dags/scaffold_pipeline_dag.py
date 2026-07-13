@@ -9,7 +9,8 @@ from chem_utils.clustering import cluster_molecules
 from chem_utils.discovery import discover_new_datasets
 from chem_utils.quality_checks import run_quality_checks
 from chem_utils.notifications import notify_teams
-
+from chem_utils.chemprop_predict import predict_properties
+from chem_utils.faerun_build import build_faerun_graph
 
 def _task_failure_alert(context):
     ti = context["task_instance"]
@@ -35,8 +36,8 @@ def _discover_new_datasets(**context):
 
 def _process_dataset(dataset_id, **context):
     """Run generate -> properties -> quality check -> cluster for one dataset.
-    Notifies MS Teams on success, and on quality-check failure specifically
-    (task-level failures are also caught by on_failure_callback above)."""
+    Optional ChemProp prediction and Faerun visualization run after clustering
+    and never fail the task even if they error, since they're optional."""
     generate_molecules(dataset_id)
     calculate_properties(dataset_id)
 
@@ -49,6 +50,16 @@ def _process_dataset(dataset_id, **context):
         raise ValueError(f"Data quality check failed for {dataset_id}: {issues}")
 
     cluster_molecules(dataset_id)
+
+    try:
+        predict_properties(dataset_id)
+    except Exception as e:
+        print(f"[chemprop] Unexpected error for {dataset_id}, continuing: {e}")
+
+    try:
+        build_faerun_graph(dataset_id)
+    except Exception as e:
+        print(f"[faerun] Unexpected error for {dataset_id}, continuing: {e}")
 
     notify_teams(f"Dataset `{dataset_id}` processed successfully.", is_error=False)
 
